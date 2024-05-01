@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Top Tracks</title>
+</head>
+<body>
+    <h1>Top Tracks</h1>
+    <ul>
+        {% for song in songs %}
+        <li>{{ loop.index }}. {{ song.name }}</li>
+        {% endfor %}
+    </ul>
+    <a href="/">Search again</a>
+</body>
+</html>
