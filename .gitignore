@@ -1,1 +1,5 @@
+# Hide Spotify Client ID and Client Access
 .env
+
+# Ignore Json file for testing
+test.json
