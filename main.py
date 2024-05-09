@@ -1,4 +1,4 @@
-from dash import html, dcc, callback, Dash, Input, Output, State, callback_context, dash_table
+from dash import html, dcc, callback, Dash, Input, Output, State, callback_context, dash_table, no_update
 import dash
 import dash_bootstrap_components as dbc
 from dash.exceptions import PreventUpdate
@@ -11,7 +11,7 @@ app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP], suppress_callb
 
 # Define the layout of the app
 app.layout = html.Div([
-    dcc.Store(id='user-library-store'),  # Add this line
+    dcc.Store(id='user-library-store', storage_type='session'),
     dcc.Location(id='url', refresh=False),
     dbc.Container([
         dbc.Row([
@@ -62,18 +62,10 @@ def search_rank(keyword, df):
 # Load the pre-processed data
 sample_database = pd.read_csv('sample_database.csv')
 
-# Initialize global dictionary to store user's song selections
-user_library = {}
-track_index = '2o1pb13quMReXZqE7jWsgq'
-song_data = sample_database[sample_database['track_id'] == track_index].iloc[0]
-user_library[track_index] = {
-    'title': song_data['title'],
-    'artist': song_data['artist'],
-    'album': song_data['album'],
-    'tempo': song_data['tempo']
-}
+# Row style
+row_style = {'margin': '5px', 'border': '1px solid #ccc', 'border-radius': '20px', 'padding': '10px', 'cursor': 'pointer'}
 
-# Callback to manage navigation and page content display
+# Display /Search or /Library page, content determined by later callbacks
 @app.callback(Output('page-content', 'children'), [Input('url', 'pathname')])
 def display_page(pathname):
     if pathname == '/library':
@@ -85,78 +77,94 @@ def display_page(pathname):
         return html.Div([
             dcc.Input(id="artist-input", type="text", placeholder="Enter song/artist/album", debounce=True),
             html.Button("Search", id="search-button"),
-            html.Div(id="songs-output"),
+            html.Div(id="songs-output")
         ])
 
-# Callback to populate and update the library page
-@app.callback(Output('library-content', 'children'), [Input('url', 'pathname')])
-def update_library_view(pathname):
-    if pathname == '/library':
-        return [
-            dbc.Row(
-                [
-                    dbc.Col(html.Div(f"{info['title']} by {info['artist']}"), width=10),
-                    dbc.Col(dbc.Checkbox(id={'type': 'library-item', 'index': track_id}, value=True, className='library-checkbox'), width=2)
-                ],
-                className='library-row',
-                style={'margin': '5px', 'border': '1px solid #ccc', 'padding': '10px'}
-            ) for track_id, info in user_library.items()
-        ]
-    return []  # Return an empty list when not on the library page
+# Display /library page by reading from user-library-store
+@app.callback(
+    Output('library-content', 'children'),
+    Input('user-library-store', 'data')
+)
+def display_library(data):
+    if not data:
+        return "Your library is empty. Why don't you add some songs?"
+    return [
+        dbc.Row([
+            dbc.Col(html.Div(f"{info['title']} by {info['artist']}"), width=10),
+            dbc.Col(dbc.Checkbox(id={'type': 'library-item', 'index': track_id}, value=True), width=2)
+        ],
+        style = row_style
+        ) for track_id, info in data.items()
+    ]
 
-# Callback to return the search results according to the search_rank function
+# Return the search results according to the search_rank function
 @app.callback(
     Output('songs-output', 'children'),
     Input('search-button', 'n_clicks'),
     State('artist-input', 'value'),
+    State('user-library-store', 'data'),  # Add this to get current library state
     prevent_initial_call=True
 )
-def update_output(n_clicks, value):
+def output_search(n_clicks, value, library_data):
     if n_clicks is None or not value:
         raise PreventUpdate
+
     search_results = search_rank(value, sample_database)
     return [
         dbc.Row(
             [
                 dbc.Col(html.Div(f"{result['title']} by {result['artist']}"), width=10),
-                dbc.Col(dbc.Checkbox(id={'type': 'song-select', 'index': result['track_id']}, value=False), width=2)
+                dbc.Col(dbc.Checkbox(
+                    id={'type': 'song-select', 'index': result['track_id']},
+                    value=(result['track_id'] in library_data) if library_data else False  # Check if the song is in the library
+                ), width=2)
             ],
             id={'type': 'song-row', 'index': result['track_id']},
             key=result['track_id'],
             className='song-row',
-            style={'margin': '5px', 'border': '1px solid #ccc', 'padding': '10px', 'cursor': 'pointer'}
+            style=row_style
         ) for result in search_results
     ]
 
-# Callback to allow the tracking of checkbox selections and manage the user library state
+# Display and update library when songs are checked/unchecked in either search results or library view.
 @app.callback(
-    Output({'type': 'song-select', 'index': dash.dependencies.ALL}, 'value'),
-    Input({'type': 'song-row', 'index': dash.dependencies.ALL}, 'n_clicks'),
-    [State({'type': 'song-select', 'index': dash.dependencies.ALL}, 'value'),
-     State({'type': 'song-row', 'index': dash.dependencies.ALL}, 'key')],
-    prevent_initial_call=True
+    Output('user-library-store', 'data'),
+    [Input({'type': 'song-select', 'index': dash.dependencies.ALL}, 'value'),
+     Input({'type': 'library-item', 'index': dash.dependencies.ALL}, 'value')],
+    [State({'type': 'song-select', 'index': dash.dependencies.ALL}, 'id'),
+     State({'type': 'library-item', 'index': dash.dependencies.ALL}, 'id'),
+     State('user-library-store', 'data')]
 )
-def toggle_song_selection(n_clicks, is_checked, track_ids):
-    ctx = callback_context
-    triggered_id, prop = ctx.triggered[0]['prop_id'].split('.')
-    track_index = json.loads(triggered_id)['index']
-    idx = track_ids.index(track_index)
+def update_user_library(search_values, library_values, search_ids, library_ids, current_data):
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        return current_data  # Return the current state if no inputs have triggered the callback
+    
+    triggered_input = ctx.triggered[0]['prop_id']
 
-    if is_checked[idx]:  # Checkbox was checked before click, so uncheck and remove from library
-        user_library.pop(track_index, None)
-        is_checked[idx] = False  # Explicitly setting unchecked state
-    else:  # Checkbox was unchecked before click, so check and add to library
-        song_data = sample_database[sample_database['track_id'] == track_index].iloc[0]
-        user_library[track_index] = {
-            'title': song_data['title'],
-            'artist': song_data['artist'],
-            'album': song_data['album'],
-            'tempo': song_data['tempo']
-        }
-        is_checked[idx] = True  # Explicitly setting checked state
+    # Check which input triggered the callback
+    if 'song-select' in triggered_input:
+        # Logic for handling search results checkboxes
+        for check, id_info in zip(search_values, search_ids):
+            track_id = id_info['index']
+            if check:
+                song_data = sample_database[sample_database['track_id'] == track_id].iloc[0]
+                current_data[track_id] = {
+                    'title': song_data['title'],
+                    'artist': song_data['artist'],
+                    'album': song_data['album'],
+                    'tempo': song_data['tempo']
+                }
+            else:
+                current_data.pop(track_id, None)
+    elif 'library-item' in triggered_input:
+        # Logic for handling library checkboxes
+        for is_checked, item_id in zip(library_values, library_ids):
+            track_id = item_id['index']
+            if not is_checked:
+                current_data.pop(track_id, None)
 
-    # Return updated checkbox states to reflect the changes
-    return is_checked
+    return current_data
 
 if __name__ == '__main__':
     app.run_server(debug=True, port=3000)
