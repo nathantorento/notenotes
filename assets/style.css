@@ -1,4 +1,10 @@
 /* assets/style.css */
-.dynamic-row:hover {
-    background-color: #f8f9fa; /* Light grey background on hover */
+.nav-link-custom:hover {
+    background-color: #95CDF6; /* Background color on hover */
+    color: #0052B5; /* Text color */
+}
+
+.custom-nav .nav-link.active {
+    background-color: #0052B5; /* Darker baby blue background */
+    color: #fff; /* White text */
 }

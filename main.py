@@ -1,3 +1,4 @@
+# Import all relevant packages
 from requests import post, get
 from dash import html, dcc, callback, Dash, Input, Output, State, callback_context, dash_table, no_update
 from dash.exceptions import PreventUpdate
@@ -7,7 +8,11 @@ import dash_bootstrap_components as dbc
 import pandas as pd
 
 # Initialize the Dash app with Bootstrap CSS
-app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP], suppress_callback_exceptions=True)
+app = Dash(
+    __name__, 
+    external_stylesheets=[dbc.themes.BOOTSTRAP], 
+    suppress_callback_exceptions=True
+)
 
 # Define the modal which will be triggered to open by clicking on a song row
 modal = dbc.Modal(
@@ -36,7 +41,7 @@ icon_style = {'height': '20px', 'margin-right': '10px'}
 nav_bar_style = {'display': 'flex', 'alignItems': 'center'}
 menu_col_style = {
     'maxWidth': '200px',
-    'backgroundColor': '#C0DDF3', 
+    'background': 'linear-gradient(to top, #C0DDF3, #ffffff)',
     'height': '100vh', 
     'padding': '10px 0px 10px 0px',
     'display': 'flex',
@@ -44,13 +49,31 @@ menu_col_style = {
 }
 main_header_style = {
     'fontSize': '32px',
-    'padding': '0 0 10px 0'
+    'padding': '0px 0px 10px 0px'
 }
 main_display_style = {
-    'backgroundColor': '#DAE9F4', 
+    'background': 'linear-gradient(to top, #DAE9F4, #ffffff)',
     'height': '100vh', 
-    'padding': '10px 10px 10px 10px',
+    'padding': '20px 20px 20px 20px',
+    'overflow-y': 'auto',  # Enables vertical scrolling
 }
+track_display_style = {
+    'border': '1px solid #ccc', 
+    'border-radius': '10px',
+    'margin': '0px',
+    'padding': '10px', 
+    'cursor': 'pointer',
+}
+
+# Define contents of "User" dropdown menu
+user_dropdown = dbc.DropdownMenu(
+    children=[
+        dbc.DropdownMenuItem("Settings", href="/settings"),
+        dbc.DropdownMenuItem("Logout", href="/logout"),
+    ],
+    nav=True,
+    in_navbar=True,
+)
 
 # Define the layout of the app
 app.layout = html.Div([
@@ -79,8 +102,9 @@ app.layout = html.Div([
                             html.Img(src="/assets/search_icon.png", style=icon_style),
                             html.Span("Search", style={'fontWeight': 'bold'})
                         ], style=nav_bar_style),
-                        href="/",
-                        active="exact"
+                        href="/search",
+                        active="exact",
+                        className="nav-link-custom"
                     ),
 
                     # Library Nav Bar with Icon
@@ -90,9 +114,10 @@ app.layout = html.Div([
                             html.Span("Library", style={'fontWeight': 'bold'})
                         ], style=nav_bar_style),
                         href="/library",
-                        active="exact"
+                        active="exact",
+                        className="nav-link-custom"
                     ),
-                ], vertical=True, pills=True, style={'width': '100%'}),
+                ], className="custom-nav", vertical=True, pills=True, style={'width': '100%'}),
 
                 # Push top nav bar up and bottom nav bar down with "FlexGrow" Div
                 html.Div(style={'flexGrow': 1}), # This div pushes the following content to the bottom
@@ -102,13 +127,18 @@ app.layout = html.Div([
                     # User Nav Bar
                     dbc.NavLink(
                         html.Div([
-                            html.Img(src="/assets/user_icon.png", style=icon_style),
-                            html.Span("User", style={'fontWeight': 'bold'})
+                            html.Img(src="/assets/user_icon.png", 
+                                     style={'height': '30px', 'margin-right': '10px'}
+                            ),
+                            html.Span("User", style={'fontWeight': 'bold'}),
+                            html.Div(style={'flexGrow': 1}),
+                            user_dropdown
                         ], style=nav_bar_style),
                         href="/user",
-                        active="exact"
+                        active="exact",
+                        className="nav-link-custom"
                     ),
-                ], vertical=True, pills=True, style={'width': '100%'}),
+                ], className="custom-nav", vertical=True, pills=True, style={'width': '100%'}),
             ], style=menu_col_style), # menu column style
 
             # Right-side main page
@@ -119,6 +149,81 @@ app.layout = html.Div([
     ], fluid=True, style={'height': '100vh', 'padding': '0'}),
     html.Div(id='dummy-div', style={'display': 'none'}),
 ], style={'margin': '0', 'height': '100vh'})
+
+# Load the pre-processed data
+sample_database = pd.read_csv('sample_database.csv')
+
+# Row generator
+def song_row_generator(track_id, info, page, library_data=None):
+    if page == "library":
+        row_type = 'library-row'
+        check_type = 'library-check'
+    elif page =='search':
+        row_type = 'search-row'
+        check_type = 'search-check'
+
+    # Rows of tracks
+    row = dbc.Col(html.Div(
+                f"{info['title']} by {info['artist']}", 
+                id={'type': row_type, 'index': track_id}, 
+                n_clicks=0, 
+                style={'cursor': 'pointer'}
+            ), width=10)
+    
+    # Accompanying checkmarks per row
+    if library_data != None and page == "search": # check marks for search results
+        checkbox = dbc.Col(dbc.Checkbox(
+                id={'type': 'search-row', 'index': info['track_id']},
+                value=(info['track_id'] in library_data) if library_data else False
+            ), width=2)
+    elif page == "library": # check marks auto checked in library
+        checkbox = dbc.Col(dbc.Checkbox(
+                id={'type': check_type, 'index': track_id}, 
+                value=True
+            ), width=2)
+
+    return row, checkbox
+
+# Display /Search or /Library page, content determined by later callbacks
+@app.callback(
+    Output('page-content', 'children'), 
+    Input('url', 'pathname'))
+def display_page(pathname):
+    if pathname == '/library':
+        return html.Div([
+            # Library Header
+            html.H1('Library', style=main_header_style),
+            # Library contents
+            html.Div(id='library-content')
+        ])
+    elif pathname == '/search':  # Default will handle the search page
+        return html.Div(
+        [
+            # Search Header
+            html.H1("Search", style=main_header_style),
+                      
+            # Search bar
+            html.Div([
+                dbc.Input(
+                    id="search-input",
+                    type="text",
+                    placeholder="Search for any song, artist, album",
+                    debounce=True,
+                    style={
+                        'flexGrow': 1,
+                        'marginRight': '10px',  # space between input and search button
+                    }
+                ),
+                html.Button("Search", id="search-button", style={'height': '38px', 'borderRadius': '10px', 'borderColor': '#ccc'})  # match search bar's height
+            ], style={
+                'display': 'flex',
+                'flexWrap': 'nowrap',
+                'padding': '10px 0px 10px 0px',
+            }),
+                        
+            # Search bar outputs
+            html.Div(id="songs-output")
+        ])
 
 # Return tracks by a specified priority
 def search_rank(keyword, df):
@@ -145,100 +250,75 @@ def search_rank(keyword, df):
     search_results = df[df['track_id'].isin(search_results)]
     return search_results.to_dict('records')
 
-# Load the pre-processed data
-sample_database = pd.read_csv('sample_database.csv')
-
-# Row style
-row_style = {'margin': '5px', 'border': '1px solid #ccc', 'border-radius': '20px', 'padding': '10px', 'cursor': 'pointer'}
-
-# Display /Search or /Library page, content determined by later callbacks
-@app.callback(Output('page-content', 'children'), [Input('url', 'pathname')])
-def display_page(pathname):
-    if pathname == '/library':
-        return html.Div([
-            html.H1('Library', style=main_header_style),
-            html.Div(id='library-content')
-        ])
-    else:  # Default will handle the search page
-        return html.Div([
-            dcc.Input(id="artist-input", type="text", placeholder="Enter song/artist/album", debounce=True),
-            html.Button("Search", id="search-button"),
-            html.Div(id="songs-output")
-        ])
-
-# Display /library page by reading from user-library-store
-@app.callback(
-    Output('library-content', 'children'),
-    Input('user-library-store', 'data')
-)
-def display_library(data):
-    if not data:
-        return "Your library is empty. Why don't you add some songs?"
-    return [
-        dbc.Row(
-            [
-                dbc.Col(html.Div(f"{info['title']} by {info['artist']}", id={'type': 'library-row', 'index': track_id}, n_clicks=0, style={'cursor': 'pointer'}), width=10),
-                dbc.Col(dbc.Checkbox(
-                    id={'type': 'library-item', 'index': track_id}, 
-                    value=True), 
-                width=2)
-            ],
-            key=track_id,
-            className='library-row',
-            style=row_style
-        ) for track_id, info in data.items()
-    ]
-
 # Return the search results according to the search_rank function
 @app.callback(
     Output('songs-output', 'children'),
     Input('search-button', 'n_clicks'),
-    State('artist-input', 'value'),
+    State('search-input', 'value'),
     State('user-library-store', 'data'),  # Add this to get current library state
     prevent_initial_call=True
 )
-def output_search(n_clicks, value, library_data):
+def output_search(n_clicks, value, data):
     if n_clicks is None or not value:
         raise PreventUpdate
 
     search_results = search_rank(value, sample_database)
+
     return [
         dbc.Row(
             [
-                dbc.Col(html.Div(f"{result['title']} by {result['artist']}", id={'type': 'song-row', 'index': result['track_id']}, n_clicks=0, style={'cursor': 'pointer'}), width=10),
-                dbc.Col(dbc.Checkbox(
-                    id={'type': 'song-select', 'index': result['track_id']},
-                    value=(result['track_id'] in library_data) if library_data else False
-                ), width=2)
+                song_row_generator(result['track_id'], result, "search", data)[0],
+                song_row_generator(result['track_id'], result, "search", data)[1]
             ],
             key=result['track_id'],
-            className='song-row',
-            style=row_style
+            className='search-row',
+            style=track_display_style
         ) for result in search_results
     ]
+
+# Load user-library-store contents for /Library
+@app.callback(
+    Output('library-content', 'children'),
+    Input('user-library-store', 'data')
+)
+def load_library(data):
+    if not data:
+        return "Your library is empty. Why don't you add some songs?"
+    else:
+        return [
+            dbc.Row(
+                [
+                    song_row_generator(track_id, info, "library")[0], # row
+                    song_row_generator(track_id, info, "library")[1] # checkbox
+                ],
+                key=track_id,
+                className='library-row',
+                style=track_display_style
+            ) for track_id, info in data.items()
+        ]
 
 # Display and update library when songs are checked/unchecked in either search results or library view.
 @app.callback(
     Output('user-library-store', 'data'),
-    [Input({'type': 'song-select', 'index': dash.dependencies.ALL}, 'value'),
-     Input({'type': 'library-item', 'index': dash.dependencies.ALL}, 'value')],
-    [State({'type': 'song-select', 'index': dash.dependencies.ALL}, 'id'),
-     State({'type': 'library-item', 'index': dash.dependencies.ALL}, 'id'),
+    [Input({'type': 'search-row', 'index': dash.dependencies.ALL}, 'value'),
+     Input({'type': 'library-check', 'index': dash.dependencies.ALL}, 'value')],
+    [State({'type': 'search-row', 'index': dash.dependencies.ALL}, 'id'),
+     State({'type': 'library-check', 'index': dash.dependencies.ALL}, 'id'),
      State('user-library-store', 'data')]
 )
 def update_user_library(search_values, library_values, search_ids, library_ids, current_data):
     ctx = dash.callback_context
     if not ctx.triggered:
         return current_data  # Return the current state if no inputs have triggered the callback
-    
+
+    # Check which input triggered the callback    
     triggered_input = ctx.triggered[0]['prop_id']
 
-    # Check which input triggered the callback
-    if 'song-select' in triggered_input:
-        # Logic for handling search results checkboxes
+    # Logic for handling search results checkboxes
+    if 'search-row' in triggered_input:
         for check, id_info in zip(search_values, search_ids):
             track_id = id_info['index']
-            if check:
+            if check: # if a search result was checked, save song in library
                 song_data = sample_database[sample_database['track_id'] == track_id].iloc[0]
                 current_data[track_id] = {
                     'title': song_data['title'],
@@ -246,9 +326,10 @@ def update_user_library(search_values, library_values, search_ids, library_ids, 
                     'album': song_data['album'],
                     'tempo': song_data['tempo']
                 }
-            else:
+            else: # if a search result was unchecked, remove song from library
                 current_data.pop(track_id, None)
-    elif 'library-item' in triggered_input:
+                
+    elif 'library-check' in triggered_input:
         # Logic for handling library checkboxes
         for is_checked, item_id in zip(library_values, library_ids):
             track_id = item_id['index']
@@ -260,7 +341,7 @@ def update_user_library(search_values, library_values, search_ids, library_ids, 
 # Toggle the modal visibility when any song row is clicked in search or library.
 @app.callback(
     Output("modal-song-details", "is_open"),
-    [Input({'type': 'song-row', 'index': dash.dependencies.ALL}, 'n_clicks')],
+    [Input({'type': 'search-row', 'index': dash.dependencies.ALL}, 'n_clicks')],
     [State("modal-song-details", "is_open")]
 )
 def toggle_modal(n_clicks_list, is_open):
