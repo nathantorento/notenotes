@@ -8,3 +8,8 @@
     background-color: #0052B5; /* Darker baby blue background */
     color: #fff; /* White text */
 }
+
+.search-row:hover, .library-row:hover {
+    background-color: #DAE9F4; /* Background color on hover */
+    color: #0052B5; /* Text color */
+}

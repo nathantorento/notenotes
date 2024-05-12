@@ -63,6 +63,9 @@ track_display_style = {
     'margin': '0px',
     'padding': '10px', 
     'cursor': 'pointer',
+    'display': 'flex',
+    'flexWrap': 'nowrap',
+    # 'padding': '10px 0px 10px 0px',
 }
 
 # Define contents of "User" dropdown menu
@@ -77,7 +80,7 @@ user_dropdown = dbc.DropdownMenu(
 
 # Define the layout of the app
 app.layout = html.Div([
-    dcc.Store(id='user-library-store', storage_type='session'),
+    dcc.Store(id='user-library-store', storage_type='session', data={}),
     dcc.Location(id='url', refresh=False),
     dbc.Container([
         dbc.Row([
@@ -168,21 +171,24 @@ def song_row_generator(track_id, info, page, library_data=None):
                 id={'type': row_type, 'index': track_id}, 
                 n_clicks=0, 
                 style={'cursor': 'pointer'}
-            ), width=10)
+            ), width=7)
     
     # Accompanying checkmarks per row
-    if library_data != None and page == "search": # check marks for search results
+    if page == "search": # check marks for search results
         checkbox = dbc.Col(dbc.Checkbox(
-                id={'type': 'search-row', 'index': info['track_id']},
+                id={'type': 'search-check', 'index': info['track_id']},
                 value=(info['track_id'] in library_data) if library_data else False
             ), width=2)
+
     elif page == "library": # check marks auto checked in library
         checkbox = dbc.Col(dbc.Checkbox(
                 id={'type': check_type, 'index': track_id}, 
                 value=True
             ), width=2)
+        
+    edit = dbc.Col(html.Img(src="assets/edit_icon.png", style={'height': '20px'}), width=2)
 
-    return row, checkbox
+    return row, checkbox, edit
 
 # Display /Search or /Library page, content determined by later callbacks
 @app.callback(
@@ -263,7 +269,7 @@ def output_search(n_clicks, value, data):
         raise PreventUpdate
 
     search_results = search_rank(value, sample_database)
-
+    
     return [
         dbc.Row(
             [
@@ -289,7 +295,8 @@ def load_library(data):
             dbc.Row(
                 [
                     song_row_generator(track_id, info, "library")[0], # row
-                    song_row_generator(track_id, info, "library")[1] # checkbox
+                    song_row_generator(track_id, info, "library")[1], # checkbox
+                    song_row_generator(track_id, info, "library")[2] # edit
                 ],
                 key=track_id,
                 className='library-row',
@@ -300,9 +307,9 @@ def load_library(data):
 # Display and update library when songs are checked/unchecked in either search results or library view.
 @app.callback(
     Output('user-library-store', 'data'),
-    [Input({'type': 'search-row', 'index': dash.dependencies.ALL}, 'value'),
+    [Input({'type': 'search-check', 'index': dash.dependencies.ALL}, 'value'),
      Input({'type': 'library-check', 'index': dash.dependencies.ALL}, 'value')],
-    [State({'type': 'search-row', 'index': dash.dependencies.ALL}, 'id'),
+    [State({'type': 'search-check', 'index': dash.dependencies.ALL}, 'id'),
      State({'type': 'library-check', 'index': dash.dependencies.ALL}, 'id'),
      State('user-library-store', 'data')]
 )
@@ -315,7 +322,7 @@ def update_user_library(search_values, library_values, search_ids, library_ids, 
     triggered_input = ctx.triggered[0]['prop_id']
 
     # Logic for handling search results checkboxes
-    if 'search-row' in triggered_input:
+    if 'search-check' in triggered_input:
         for check, id_info in zip(search_values, search_ids):
             track_id = id_info['index']
             if check: # if a search result was checked, save song in library
@@ -334,7 +341,8 @@ def update_user_library(search_values, library_values, search_ids, library_ids, 
         for is_checked, item_id in zip(library_values, library_ids):
             track_id = item_id['index']
             if not is_checked:
-                current_data.pop(track_id, None)
+                if track_id in current_data:  # Check if the track_id exists before popping
+                    current_data.pop(track_id)
 
     return current_data
 
