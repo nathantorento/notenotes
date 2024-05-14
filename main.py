@@ -2,7 +2,9 @@
 from requests import post, get
 from dash import html, dcc, callback, Dash, Input, Output, State, callback_context, dash_table, no_update
 from dash.exceptions import PreventUpdate
-from dash.dependencies import ClientsideFunction
+from dash.dependencies import ClientsideFunction, ALL
+import json
+import ast
 import dash
 import dash_bootstrap_components as dbc
 import pandas as pd
@@ -11,28 +13,7 @@ import pandas as pd
 app = Dash(
     __name__, 
     external_stylesheets=[dbc.themes.BOOTSTRAP], 
-    suppress_callback_exceptions=True
-)
-
-# Define the modal which will be triggered to open by clicking on a song row
-modal = dbc.Modal(
-    [
-        dbc.ModalHeader(dbc.ModalTitle("Song Details"), close_button=True),
-        dbc.ModalBody([
-            dbc.Button("Genre: None", className="mr-1", style={'background-color': 'white', 'color': 'black'}),
-            dbc.Button("Tempo: 130 BPM", className="mr-1", style={'background-color': 'white', 'color': 'black'}),
-            dbc.Button("Add: Custom", className="mr-1", style={'background-color': 'white', 'color': 'black'}),
-            html.Br(),
-            html.Br(),
-            dbc.Button("Add: Lyrics", className="mr-1", style={'background-color': 'white', 'color': 'black'}),
-            dbc.Button("Add: Lead Sheet", className="mr-1", style={'background-color': 'white', 'color': 'black'}),
-            dbc.Button("Add: Sheet Music", className="mr-1", style={'background-color': 'white', 'color': 'black'}),
-        ], style={'backgroundColor': '#B0E0E6'}),
-    ],
-    id="modal-song-details",
-    is_open=False,  # Initially don't show the modal
-    centered=True,
-    backdrop="static"  # Dismiss by clicking outside of modal
+    suppress_callback_exceptions=True,
 )
 
 # Unified style guides
@@ -68,6 +49,51 @@ track_display_style = {
     # 'padding': '10px 0px 10px 0px',
 }
 
+# # Define the modal
+# test_modal = dbc.Modal(
+#     [
+#         dbc.ModalHeader(dbc.ModalTitle("Modal Test")),
+#         dbc.ModalBody("This is a test modal."),
+#     ],
+#     id="test-modal",
+#     is_open=False,  # Initially don't show the modal
+# )
+
+# Define the modal which will be triggered to open by clicking on a song row
+modal = dbc.Modal(
+    [
+        dbc.ModalHeader(dbc.ModalTitle("Song Details"), close_button=True),
+        dbc.ModalBody([
+            html.Div(id="modal-attributes"),
+            html.Div(style={"height":"20px"}), #space in between attributes and resources
+            html.Div(id="modal-resources")
+        ]),
+    ],
+    id="modal-status",
+    is_open=False,  # Initially don't show the modal
+    centered=True,
+    backdrop="static"  # Dismiss by clicking outside of modal
+)
+
+# Modal attributes content
+def modal_attributes_generator(song_data):
+    genre = dbc.Button(f"Genre: {song_data.get('genre', 'None')}", className="mr-1", style={'background-color': 'white', 'color': 'black'})
+    tempo = dbc.Button(f"Tempo: {song_data.get('tempo', 'None')}bpm", className="mr-1", style={'background-color': 'white', 'color': 'black'})
+
+    attributes = html.Div([genre, tempo])
+
+    return attributes
+
+# Modal resources content (dynamic based on whether the song is in the user's library)
+def modal_resources_generator(song_data):
+    lyrics = dbc.Button("Lyrics", href=song_data.get('lyrics_link', '#'), target="_blank", className="mr-1", style={'background-color': 'white', 'color': 'black'})
+    lead_sheet = dbc.Button("Lead Sheet", href=song_data.get('lead_sheet_link', '#'), target="_blank", className="mr-1", style={'background-color': 'white', 'color': 'black'})
+    sheet_music = dbc.Button("Sheet Music", href=song_data.get('sheet_music_link', '#'), target="_blank", className="mr-1", style={'background-color': 'white', 'color': 'black'})
+
+    resources = html.Div([lyrics, lead_sheet, sheet_music])
+
+    return resources
+
 # Define contents of "User" dropdown menu
 user_dropdown = dbc.DropdownMenu(
     children=[
@@ -82,6 +108,10 @@ user_dropdown = dbc.DropdownMenu(
 app.layout = html.Div([
     dcc.Store(id='user-library-store', storage_type='session', data={}),
     dcc.Location(id='url', refresh=False),
+    # dbc.Button("Open Modal", id="open-modal-btn", n_clicks=0),
+    # test_modal,
+    # html.Div(id='debug-output'),
+    # dbc.Input(id="link-input", placeholder="Enter link here", type="text"), # broken: link-input for modal
     dbc.Container([
         dbc.Row([
             # Left-side Menu Bar (fixed width)
@@ -150,6 +180,7 @@ app.layout = html.Div([
             ], id='page-content', style=main_display_style),
         ], style={'height': '100vh', 'margin': '0'}),
     ], fluid=True, style={'height': '100vh', 'padding': '0'}),
+    modal,
     html.Div(id='dummy-div', style={'display': 'none'}),
 ], style={'margin': '0', 'height': '100vh'})
 
@@ -157,13 +188,9 @@ app.layout = html.Div([
 sample_database = pd.read_csv('sample_database.csv')
 
 # Row generator
-def song_row_generator(track_id, info, page, library_data=None):
-    if page == "library":
-        row_type = 'library-row'
-        check_type = 'library-check'
-    elif page =='search':
-        row_type = 'search-row'
-        check_type = 'search-check'
+def song_row_generator(track_id, info, page, personal_library=None):
+    row_type = f"{page}-row"
+    check_type = f"{page}-check"
 
     # Rows of tracks
     row = dbc.Col(html.Div(
@@ -177,7 +204,7 @@ def song_row_generator(track_id, info, page, library_data=None):
     if page == "search": # check marks for search results
         checkbox = dbc.Col(dbc.Checkbox(
                 id={'type': 'search-check', 'index': info['track_id']},
-                value=(info['track_id'] in library_data) if library_data else False
+                value=(info['track_id'] in personal_library) if personal_library else False
             ), width=2)
 
     elif page == "library": # check marks auto checked in library
@@ -228,7 +255,7 @@ def display_page(pathname):
             }),
                         
             # Search bar outputs
-            html.Div(id="songs-output")
+            html.Div(id="search-output")
         ])
 
 # Return tracks by a specified priority
@@ -258,7 +285,7 @@ def search_rank(keyword, df):
 
 # Return the search results according to the search_rank function
 @app.callback(
-    Output('songs-output', 'children'),
+    Output('search-output', 'children'),
     Input('search-button', 'n_clicks'),
     State('search-input', 'value'),
     State('user-library-store', 'data'),  # Add this to get current library state
@@ -296,7 +323,7 @@ def load_library(data):
                 [
                     song_row_generator(track_id, info, "library")[0], # row
                     song_row_generator(track_id, info, "library")[1], # checkbox
-                    song_row_generator(track_id, info, "library")[2] # edit
+                    song_row_generator(track_id, info, "library")[2], # edit
                 ],
                 key=track_id,
                 className='library-row',
@@ -304,58 +331,160 @@ def load_library(data):
             ) for track_id, info in data.items()
         ]
 
-# Display and update library when songs are checked/unchecked in either search results or library view.
+# This callback will toggle the modal open state based on multiple triggers.
 @app.callback(
-    Output('user-library-store', 'data'),
-    [Input({'type': 'search-check', 'index': dash.dependencies.ALL}, 'value'),
-     Input({'type': 'library-check', 'index': dash.dependencies.ALL}, 'value')],
-    [State({'type': 'search-check', 'index': dash.dependencies.ALL}, 'id'),
-     State({'type': 'library-check', 'index': dash.dependencies.ALL}, 'id'),
-     State('user-library-store', 'data')]
+    [
+        Output("modal-status", "is_open"),
+        Output('modal-attributes', 'children'),
+        Output('modal-resources', 'children')
+    ],
+    [
+        Input({'type': 'search-row', 'index': ALL}, 'n_clicks'),
+        Input({'type': 'library-row', 'index': ALL}, 'n_clicks'),
+        # Input("close-modal-btn", "n_clicks"),
+        # Input({'type': 'search-check', 'index': ALL}, 'value'),
+        # Input({'type': 'library-check', 'index': ALL}, 'value')
+    ],
+    [
+        # State({'type': 'search-row', 'index': ALL}, 'id'),
+        # State({'type': 'library-row', 'index': ALL}, 'id'),
+        State("modal-status", "is_open"),
+        State('user-library-store', 'data')
+    ],
+    prevent_initial_call=True
 )
-def update_user_library(search_values, library_values, search_ids, library_ids, current_data):
+def toggle_update_modal(
+                        search_row_clicks, library_row_clicks, 
+                        # close_modal_clicks,
+                        # search_check_values, library_check_values,
+                        # search_ids, library_ids, 
+                        is_open, 
+                        personal_library):
     ctx = dash.callback_context
     if not ctx.triggered:
-        return current_data  # Return the current state if no inputs have triggered the callback
+        return is_open  # No input was triggered, return the current state
 
-    # Check which input triggered the callback    
-    triggered_input = ctx.triggered[0]['prop_id']
+    # print(ast.literal_eval(ctx.triggered[0]['prop_id'].split('.')[0])['index'])
+    # prop_id = triggered_info['prop_id']
+    # # clicks = triggered_info['value']
+    # prop_id_dict = ast.literal_eval(prop_id.split('.')[0])
+    # row_type = prop_id_dict['type']
+    index = ast.literal_eval(ctx.triggered[0]['prop_id'].split('.')[0])['index']
 
-    # Logic for handling search results checkboxes
-    if 'search-check' in triggered_input:
-        for check, id_info in zip(search_values, search_ids):
+    # # Handle close button clicks
+    # if "close-modal-btn" in triggered_id:
+    #     return False, no_update, no_update  # Close the modal and leave contents unchanged
+
+    # Retrieve song data, checking personal library first
+    song_data = personal_library.get(index) or sample_database[sample_database['track_id'] == index].drop(columns='track_id').iloc[0].to_dict()
+
+    # Modal content generation based on the song data and whether it is in the library
+    if song_data:
+        modal_attributes = [modal_attributes_generator(song_data)]
+        if index in personal_library:
+            modal_resources = [modal_resources_generator(song_data)]
+        else:
+            modal_resources = []
+    else:
+        modal_attributes = []
+        modal_resources = []
+    
+    return not is_open, modal_attributes, modal_resources if ctx.triggered else is_open
+
+# Display song details like genre and tempo and, if the song is in the library, provide options to add or edit links for lyrics, lead sheets, and full sheet music
+
+@app.callback(
+    Output('user-library-store', 'data'),
+    [Input({'type': 'search-check', 'index': ALL}, 'value'),
+     Input({'type': 'library-check', 'index': ALL}, 'value'),
+     Input({'type': 'add-lyrics', 'index': ALL}, 'n_clicks'),
+     Input({'type': 'edit-lyrics', 'index': ALL}, 'n_clicks'),
+     Input({'type': 'add-lead', 'index': ALL}, 'n_clicks'),
+     Input({'type': 'edit-lead', 'index': ALL}, 'n_clicks'),
+     Input({'type': 'add-sheet', 'index': ALL}, 'n_clicks'),
+     Input({'type': 'edit-sheet', 'index': ALL}, 'n_clicks')],
+    [State({'type': 'search-check', 'index': ALL}, 'id'),
+     State({'type': 'library-check', 'index': ALL}, 'id'),
+     State('user-library-store', 'data')]
+)
+def manage_personal_library(search_values, library_values, add_lyrics_clicks, edit_lyrics_clicks,
+                        add_lead_clicks, edit_lead_clicks, add_sheet_clicks, edit_sheet_clicks,
+                        search_ids, library_ids, current_data):
+    # Determine which actions were performed
+    ctx = callback_context
+    if not ctx.triggered:
+        return current_data
+
+    triggered_id = ctx.triggered[0]['prop_id']
+    dictionary_part = triggered_id.split('.')[0]
+    # Use ast.literal_eval to safely evaluate the string to a dictionary
+    dict_result = ast.literal_eval(dictionary_part)
+    index = dict_result['index']
+    
+    # Add or remove songs to library when checkbox is checked or unchecked, respectively
+    if 'search-check' in triggered_id or 'library-check' in triggered_id:
+        if 'search-check' in triggered_id:
+            values = search_values
+            ids = search_ids
+        elif 'library-check' in triggered_id:
+            values = library_values
+            ids = library_ids
+        for check, id_info in zip(values, ids):
             track_id = id_info['index']
-            if check: # if a search result was checked, save song in library
+            if check:
                 song_data = sample_database[sample_database['track_id'] == track_id].iloc[0]
                 current_data[track_id] = {
                     'title': song_data['title'],
                     'artist': song_data['artist'],
                     'album': song_data['album'],
-                    'tempo': song_data['tempo']
+                    'tempo': song_data['tempo'],
+                    'genre': song_data['genre']
                 }
-            else: # if a search result was unchecked, remove song from library
+            else:  # Removing song from library
                 current_data.pop(track_id, None)
-                
-    elif 'library-check' in triggered_input:
-        # Logic for handling library checkboxes
-        for is_checked, item_id in zip(library_values, library_ids):
-            track_id = item_id['index']
-            if not is_checked:
-                if track_id in current_data:  # Check if the track_id exists before popping
-                    current_data.pop(track_id)
+
+    if 'add-' in triggered_id or 'edit-' in triggered_id:
+        if 'lyrics' in triggered_id:
+            current_data[index]['lyrics'] = link
+        elif 'lead' in triggered_id:
+            current_data[index]['lead_sheet'] = link
+        elif 'sheet' in triggered_id:
+            current_data[index]['full_sheet'] = link
 
     return current_data
 
-# Toggle the modal visibility when any song row is clicked in search or library.
-@app.callback(
-    Output("modal-song-details", "is_open"),
-    [Input({'type': 'search-row', 'index': dash.dependencies.ALL}, 'n_clicks')],
-    [State("modal-song-details", "is_open")]
-)
-def toggle_modal(n_clicks_list, is_open):
-    if any(n_clicks for n_clicks in n_clicks_list if n_clicks):
-        return not is_open
-    return is_open
+# @app.callback(
+#     Output('debug-output', 'children'),
+#     [Input({'type': 'search-row', 'index': ALL}, 'n_clicks'),
+#      Input({'type': 'library-row', 'index': ALL}, 'n_clicks')],
+#     prevent_initial_call=True
+# )
+# def debug_row_clicks(*args):
+#     ctx = callback_context
+#     if not ctx.triggered:
+#         return "No row was clicked yet."
+
+#     triggered_info = ctx.triggered[0]
+#     prop_id = triggered_info['prop_id']
+#     clicks = triggered_info['value']
+
+#     # Extract index and type from prop_id
+#     prop_id_dict = ast.literal_eval(prop_id.split('.')[0])
+#     row_type = prop_id_dict['type']
+#     row_index = prop_id_dict['index']
+
+#     return f"{row_type} at index {row_index} was clicked {clicks} times."
+
+# # Callback to toggle the modal
+# @app.callback(
+#     Output("test-modal", "is_open"),
+#     [Input("open-modal-btn", "n_clicks")],
+#     [State("test-modal", "is_open")]
+# )
+# def toggle_test_modal(n_clicks, is_open):
+#     if n_clicks:
+#         return not is_open
+#     return is_open
 
 if __name__ == '__main__':
     app.run_server(debug=True, port=3000)
