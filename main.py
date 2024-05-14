@@ -49,22 +49,42 @@ track_display_style = {
     # 'padding': '10px 0px 10px 0px',
 }
 
+# Edit icon
+edit_icon = html.Img(src="assets/edit_icon.png",
+                   style={'width': '20px'})
+
 # Define the modal which will be triggered to open by clicking on a song row
 modal = dbc.Modal(
     [
-        dbc.ModalHeader(dbc.ModalTitle(
-            "Song Attributes/Resources"), close_button=True),
+        dbc.ModalHeader(
+            dbc.Row(
+                [
+                    dbc.Col(dbc.ModalTitle("Metadata"), width=6),
+                    dbc.Col(
+                        html.Button(
+                            edit_icon,
+                            id="edit-modal-icon", n_clicks=0, style={
+                                'border': 'none', 
+                                'background': 'none', 
+                                'cursor': 'pointer'}
+                        ), 
+                    style={'display': 'flex', 'margin-left': '5px'}
+                    )
+                ],
+
+            ),
+            close_button=True
+        ),
         dbc.ModalBody([
             html.Div(id="modal-attributes"),
-            # space in between attributes and resources
-            html.Div(style={"height": "20px"}),
+            html.Div(style={"height": "20px"}),  # Space between attributes and resources
             html.Div(id="modal-resources")
         ]),
     ],
     id="modal-status",
     is_open=False,  # Initially don't show the modal
     centered=True,
-    backdrop=True  # Dismiss by clicking outside of modal
+    backdrop=True  # Allow dismissal by clicking outside of modal
 )
 
 # Modal attributes content
@@ -79,8 +99,8 @@ def modal_attributes_generator(song_data):
             value = f"{value}"
 
         button = dbc.Button(f"{attribute.title()}: {value}", style={
-            'background-color': 'white',
-            'color': 'black',
+            'background-color': '#65fe08)',
+            'color': 'white',
             'width': '150px'})
         return button
 
@@ -98,8 +118,8 @@ def modal_resources_generator(song_data):
     # Function to generate resource buttons in a custom, reusable format
     def resource_button_generator(resource_name, link):
         return dbc.Button(resource_name, href=song_data.get(link, '#'), target="_blank", className="mr-1", style={
-            'background-color': 'white',
-            'color': 'black',
+            'background-color': '#f9be82',
+            'color': 'white',
             'width': '150px'})
 
     lyrics = resource_button_generator("Lyrics", 'lyrics_link')
@@ -203,6 +223,7 @@ app.layout = html.Div([
     html.Div(id='dummy-div', style={'display': 'none'}),
 ], style={'margin': '0', 'height': '100vh'})
 
+
 # Load the pre-processed data
 sample_database = pd.read_csv('sample_database.csv')
 
@@ -220,23 +241,24 @@ def song_row_generator(track_id, info, page, personal_library=None):
     ), width=7)
 
     # Accompanying checkmarks per row
-    if page == "search":  # check marks for search results
-        checkbox = dbc.Col(dbc.Checkbox(
-            id={'type': 'search-check', 'index': info['track_id']},
-            value=(info['track_id']
-                   in personal_library) if personal_library else False
-        ), width=2)
+    checkbox = dbc.Col(dbc.Checkbox(
+        id={'type': check_type, 'index': track_id},
+        value=(track_id in personal_library) if personal_library else False
+    ), width=2)
 
-    elif page == "library":  # check marks auto checked in library
-        checkbox = dbc.Col(dbc.Checkbox(
-            id={'type': check_type, 'index': track_id},
-            value=True
-        ), width=2)
+    row_contents = [row, checkbox]
+    
+    # Add edit icon if the song is in the library
+    if track_id in personal_library:
+        edit = dbc.Col(html.Button(
+                        edit_icon,
+                        id={"type": "edit-icon", "index": track_id}, 
+                        n_clicks=0, 
+                        style={'border': 'none', 'background': 'none', 'cursor': 'pointer'}
+                    ))
+        row_contents.append(edit)
 
-    edit = dbc.Col(html.Img(src="assets/edit_icon.png",
-                   style={'height': '20px'}), width=2)
-
-    return row, checkbox, edit
+    return row_contents
 
 # Display /Search or /Library page, content determined by later callbacks
 @app.callback(
@@ -309,13 +331,14 @@ def search_rank(keyword, df):
 # Return the search results according to the search_rank function
 @app.callback(
     Output('search-output', 'children'),
-    Input('search-button', 'n_clicks'),
+    [
+        Input('search-button', 'n_clicks'),  # Trigger for search
+        Input('user-library-store', 'data')  # Ensures update when library data changes
+    ],
     State('search-input', 'value'),
-    # Add this to get current library state
-    State('user-library-store', 'data'),
     prevent_initial_call=True
 )
-def output_search(n_clicks, value, data):
+def output_search(n_clicks, library_data, value):
     if n_clicks is None or not value:
         raise PreventUpdate
 
@@ -323,12 +346,7 @@ def output_search(n_clicks, value, data):
 
     return [
         dbc.Row(
-            [
-                song_row_generator(
-                    result['track_id'], result, "search", data)[0],
-                song_row_generator(
-                    result['track_id'], result, "search", data)[1]
-            ],
+            song_row_generator(result['track_id'], result, "search", library_data),
             key=result['track_id'],
             className='search-row',
             style=track_display_style
@@ -346,12 +364,7 @@ def load_library(data):
     else:
         return [
             dbc.Row(
-                [
-                    song_row_generator(track_id, info, "library")[0],  # row
-                    song_row_generator(track_id, info, "library")[
-                        1],  # checkbox
-                    song_row_generator(track_id, info, "library")[2],  # edit
-                ],
+                song_row_generator(track_id, info, "library", data),
                 key=track_id,
                 className='library-row',
                 style=track_display_style
@@ -448,13 +461,13 @@ def manage_personal_library(search_values, library_values, add_lyrics_clicks, ed
             else:  # Removing song from library
                 current_data.pop(track_id, None)
 
-    if 'add-' in triggered_id or 'edit-' in triggered_id:
-        if 'lyrics' in triggered_id:
-            current_data[index]['lyrics'] = link
-        elif 'lead' in triggered_id:
-            current_data[index]['lead_sheet'] = link
-        elif 'sheet' in triggered_id:
-            current_data[index]['full_sheet'] = link
+    # if 'add-' in triggered_id or 'edit-' in triggered_id:
+    #     if 'lyrics' in triggered_id:
+    #         current_data[index]['lyrics'] = link
+    #     elif 'lead' in triggered_id:
+    #         current_data[index]['lead_sheet'] = link
+    #     elif 'sheet' in triggered_id:
+    #         current_data[index]['full_sheet'] = link
 
     return current_data
 
