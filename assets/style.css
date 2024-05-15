@@ -13,3 +13,15 @@
     background-color: #DAE9F4; /* Background color on hover */
     color: #0052B5; /* Text color */
 }
+
+.modal-backdrop {
+    z-index: 1040 !important;
+}
+
+.base-modal {
+    z-index: 1050 !important;
+}
+
+.input-modal {
+    z-index: 1060 !important;
+}

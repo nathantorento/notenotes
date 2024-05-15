@@ -84,8 +84,7 @@ modal = dbc.Modal(
     id="modal-status",
     is_open=False,  # Initially don't show the modal
     centered=True,
-    backdrop=True,  # Allow dismissal by clicking outside of modal
-    className="base-modal" # CSS class to determine z-index and display priority
+    backdrop=True  # Allow dismissal by clicking outside of modal
 )
 
 # Modal attributes content
@@ -115,116 +114,68 @@ def modal_attributes_generator(song_data):
     return attributes
 
 # Modal resources content (dynamic based on whether the song is in the user's library)
-def modal_resources_generator(song_data, track_id):
+def modal_resources_generator(song_data):
     # Function to generate resource buttons in a custom, reusable format
-    def resource_button_generator(resource_name, link, track_id):
-        button_text = f"Add: {resource_name}" if link == '/' else resource_name
+    def resource_button_generator(resource_name, link, song_id):
         button = dbc.Button(
-            html.Span(button_text),
-            # href="/test",
+            resource_name, 
             id={
-                "index": track_id,
                 "type": "edit-resource",
-                "resource": resource_name.lower().replace(" ", "-")
+                "index": song_id,
+                "resource": resource_name.lower()
             },
             n_clicks=0,
-            style={'cursor': 'pointer',
-                   'background-color': '#f9be82', 
-                   'color': 'white', 
-                   'width': '150px'}
+            style={'background-color': '#f9be82', 'color': 'white', 'width': '150px'}
         )
         return button
+
+    lyrics = resource_button_generator("Lyrics", 'lyrics_link')
+    lead_sheet = resource_button_generator("Lead Sheet", 'lead_sheet_link')
+    sheet_music = resource_button_generator("Sheet Music", 'sheet_music_link')
+
+    resources = html.Div([lyrics, lead_sheet, sheet_music], style={
+        'display': 'flex',
+        'justify-content': 'space-between'})
     
-    lyrics_link = song_data.get('lyrics_link', '/')
-    lead_sheet_link = song_data.get('lead_sheet_link', '/')
-    sheet_music_link = song_data.get('sheet_music_link', '/')
-
-    lyrics = resource_button_generator("Lyrics", lyrics_link, track_id)
-    lead_sheet = resource_button_generator("Lead Sheet", lead_sheet_link, track_id)
-    sheet_music = resource_button_generator("Sheet Music", sheet_music_link, track_id)
-
-    resources = dbc.Row(
-            html.Div([lyrics, lead_sheet, sheet_music], style={
-            'display': 'flex',
-            'justify-content': 'space-between'}
-        ), key=track_id, className='edit-resource')
-
     return resources
 
 # Input modal for putting in links to song resources
 input_modal = dbc.Modal(
     [
-        dbc.ModalHeader(dbc.ModalTitle("Edit Resource Link"), close_button=True),
-        dbc.ModalBody([
-                html.Div(id="input-modal-components")
-        ]),
+        dbc.ModalHeader(dbc.ModalTitle("Edit Resource Link")),
+        dbc.ModalBody(
+            dbc.Input(id="input-link", placeholder="Insert link", type="text")
+        ),
+        dbc.ModalFooter(
+            dbc.Button("Submit", id="submit-link", className="ms-auto", n_clicks=0)
+        )
     ],
-    id="input-modal-status",
+    id="input-modal",
     is_open=False,
-    centered=True,
-    backdrop=True,
-    className="input-modal" # CSS class to determine z-index and display priority
+    centered=True
 )
 
 # Trigger the input modal
 @app.callback(
-    [
-        Output("input-modal-status", "is_open"),
-        Output("input-modal-components", "children"), # output with existing link filled in (or not)
-    ],
-    [
-        Input({"type": "edit-resource", "index": ALL, "resource": ALL}, "n_clicks")
-    ],
-    [
-        State("input-modal-status", "is_open"),
-        State("user-library-store", "data")
-    ],
+    [Output("input-modal", "is_open"),
+     Output("input-link", "value"),
+     State("input-modal", "is_open")],
+    [Input({"type": "edit-resource", "index": ALL, "resource": ALL}, "n_clicks"),
+     State({'type': "edit-resource", "index": ALL, "resource": ALL}, "id"),
+     State("user-library-store", "data")],
     prevent_initial_call=True
 )
-def toggle_update_input_modal(resource_clicks, is_open, library_data):
+def open_input_modal(n_clicks, ids, library_data):
     ctx = dash.callback_context
     if not ctx.triggered:
-        return is_open
+        return False, "", no_update  # Keep modal closed if not triggered
 
-    trigger_info = ast.literal_eval(ctx.triggered[0]["prop_id"].split('.')[0])
-    resource_type = trigger_info["resource"]
-    track_id = trigger_info["index"]
+    button_id = ctx.triggered[0]["id"]
+    resource_type = button_id["resource"]
+    song_id = button_id["index"]
 
-    existing_link = library_data[track_id]
-    input_bar = dbc.Input(
-        id=existing_link, 
-        placeholder="Insert link", 
-        type="text", 
-        style={
-            'flexGrow': 1, 
-            'margin-right': '10px'}),
-    submit_button = dbc.Button(
-        "Submit", 
-        id={
-            'type': 'submit-link', 
-            'index': track_id,
-            'resource': resource_type}, 
-        className="ms-auto", 
-        n_clicks=0
-        )
-    input_components = html.Div([input_bar, submit_button], style={
-        'display': 'flex',
-        'flexWrap': 'nowrap'
-    })
-    
-    if any(click > 0 for click in resource_clicks):
-        return not is_open, input_components
-    return is_open, no_update
-
-# Define contents of "User" dropdown menu
-user_dropdown = dbc.DropdownMenu(
-    children=[
-        dbc.DropdownMenuItem("Settings", href="/settings"),
-        dbc.DropdownMenuItem("Logout", href="/logout"),
-    ],
-    nav=True,
-    in_navbar=True,
-)
+    existing_link = library_data[song_id].get(resource_type, "")
+    return True, existing_link, no_update
 
 # Define contents of "User" dropdown menu
 user_dropdown = dbc.DropdownMenu(
@@ -314,7 +265,6 @@ app.layout = html.Div([
         ], style={'height': '100vh', 'margin': '0'}),
     ], fluid=True, style={'height': '100vh', 'padding': '0'}),
     modal,
-    input_modal,
     html.Div(id='dummy-div', style={'display': 'none'}),
 ], style={'margin': '0', 'height': '100vh'})
 
@@ -345,14 +295,23 @@ def song_row_generator(track_id, info, page, personal_library=None):
     
     # Add edit icon if the song is in the library
     if track_id in personal_library:
+        resources = personal_library[track_id]
+        icons = []
         edit = dbc.Col(html.Button(
                         edit_icon,
                         id={"type": "edit-icon", "index": track_id}, 
                         n_clicks=0, 
                         style={'border': 'none', 'background': 'none', 'cursor': 'pointer'}
                     ))
-        row_contents.append(edit)
-
+        icons.append(edit)
+        if 'lyrics' in resources:
+            icons.append(html.Img(src="assets/lyrics_icon.png", style={'width': '20px'}))
+        if 'lead_sheet' in resources:
+            icons.append(html.Img(src="assets/lead_sheet_icon.png", style={'width': '20px'}))
+        if 'sheet_music' in resources:
+            icons.append(html.Img(src="assets/sheet_music_icon.png", style={'width': '20px'}))
+        row_contents.extend(icons)  # Extend row contents with resource icons
+    
     return row_contents
 
 # Display /Search or /Library page, content determined by later callbacks
@@ -498,10 +457,10 @@ def toggle_update_modal(search_row_clicks, library_row_clicks, is_open, personal
     if any(click > 0 for click in search_row_clicks + library_row_clicks):
         if song_data:
             modal_attributes = modal_attributes_generator(song_data)
-            modal_resources = modal_resources_generator(song_data, index) if index in personal_library else []
+            modal_resources = modal_resources_generator(song_data) if index in personal_library else []
             return not is_open, modal_attributes, modal_resources
         else:
-            return not is_open, no_update, no_update
+            return not is_open, [], []
     return is_open, no_update, no_update
 
 # Display song details like genre and tempo and, if the song is in the library, provide options to add or edit links for lyrics, lead sheets, and full sheet music
@@ -510,61 +469,51 @@ def toggle_update_modal(search_row_clicks, library_row_clicks, is_open, personal
     [
         Input({'type': 'search-check', 'index': ALL}, 'value'),
         Input({'type': 'library-check', 'index': ALL}, 'value'),
-        Input({'type': 'submit-link', 'index': ALL}, 'value'),
+        Input('submit-link', 'n_clicks')  # Handling link submissions
     ],
     [
         State({'type': 'search-check', 'index': ALL}, 'id'),
         State({'type': 'library-check', 'index': ALL}, 'id'),
+        State('input-link', 'value'),  # The new link value
+        State('modal-data', 'data'),  # Store for current song ID and resource being edited
         State('user-library-store', 'data')
-    ]
+    ],
+    prevent_initial_call=True
 )
-def update_personal_library(search_values,
-                            library_values, 
-                            submit_values,
-                            search_ids,
-                            library_ids, 
-                            personal_library):
-    # Determine which actions were performed
-    ctx = callback_context
+def manage_personal_library(search_values, library_values, submit_n_clicks,
+                            search_ids, library_ids, new_link, modal_data, current_data):
+    ctx = dash.callback_context
     if not ctx.triggered:
-        return personal_library
-
-    # trigger_info = ast.literal_eval(ctx.triggered[0]["prop_id"].split('.')[0])
+        return current_data
 
     triggered_id = ctx.triggered[0]['prop_id']
+    
+    # Add or update links in the library
+    if triggered_id == 'submit-link.n_clicks' and submit_n_clicks:
+        song_id = modal_data['song_id']
+        resource_type = modal_data['resource_type']
+        
+        if song_id in current_data:
+            current_data[song_id][resource_type] = new_link  # Update the link
+        return current_data
+
+    # Toggle song addition/removal in the library
     dictionary_part = triggered_id.split('.')[0]
-    dict_result = ast.literal_eval(dictionary_part) # Use ast.literal_eval to safely evaluate the string to a dictionary
+    index = ast.literal_eval(dictionary_part)['index']
 
-    print(ctx.triggered)
-
-    # Update resource links
-    # if "submit-link" in triggered_id:
-    #     print()
-    # Add or remove songs to library when checkbox is checked or unchecked, respectively
-    if 'check' in triggered_id:
-
-        if 'search-check' in triggered_id:
-            values = search_values
-            ids = search_ids
-        elif 'library-check' in triggered_id:
-            values = library_values
-            ids = library_ids
+    if 'search-check' in triggered_id or 'library-check' in triggered_id:
+        values = search_values if 'search-check' in triggered_id else library_values
+        ids = search_ids if 'search-check' in triggered_id else library_ids
+        
         for check, id_info in zip(values, ids):
             track_id = id_info['index']
             if check:
-                song_data = sample_database[sample_database['track_id']
-                                            == track_id].iloc[0]
-                personal_library[track_id] = {
-                    'title': song_data['title'],
-                    'artist': song_data['artist'],
-                    'album': song_data['album'],
-                    'tempo': song_data['tempo'],
-                    'genre': song_data['genre']
-                }
-            else:  # Removing song from library
-                personal_library.pop(track_id, None)
+                song_data = sample_database[sample_database['track_id'] == track_id].iloc[0].to_dict()
+                current_data[track_id] = song_data
+            else:
+                current_data.pop(track_id, None)
 
-    return personal_library
+    return current_data
 
 if __name__ == '__main__':
     app.run_server(debug=True, port=3000)
