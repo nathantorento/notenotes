@@ -3,3 +3,6 @@
 
 # Ignore Json file for testing
 test.json
+
+# Ignore all pycache files
+__pycache__/

@@ -1,6 +1,31 @@
+"""
+prepare_data.py
+
+This script populates a sample database with track information from the Spotify API and saves it to a CSV file.
+It uses environment variables for the Spotify API credentials.
+
+Functions:
+    - get_token(): Retrieves an access token from the Spotify API.
+    - populate_tracks(sample_albums): Populates a DataFrame with track information from the specified albums.
+
+Environment Variables:
+    - CLIENT_ID: Spotify API client ID.
+    - CLIENT_SECRET: Spotify API client secret.
+
+Steps:
+    1. Load environment variables for Spotify API credentials.
+    2. Define a function to get an access token from Spotify.
+    3. Define a function to populate a DataFrame with track data from specified albums.
+    4. Create a list of sample albums.
+    5. Populate the sample database with track data.
+    6. Save the populated DataFrame to 'sample_database.csv'.
+
+Example:
+    $ python prepare_data.py
+"""
+
 from dotenv import load_dotenv
 import os
-import requests
 import base64
 from requests import post, get
 import json
