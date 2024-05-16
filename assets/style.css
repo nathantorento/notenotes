@@ -1,4 +1,13 @@
 /* assets/style.css */
+html, body {
+    min-width: 750px;
+    width: 100%;
+}
+
+.search-row, .library-row {
+    min-width: 500px;
+}
+
 .nav-link-custom:hover {
     background-color: #95CDF6; /* Background color on hover */
     color: #0052B5; /* Text color */
@@ -18,10 +27,15 @@
     z-index: 1040 !important;
 }
 
-.base-modal {
+.info-modal {
     z-index: 1050 !important;
 }
 
 .input-modal {
-    z-index: 1060 !important;
+    z-index: 1060 !important; /* Ensure input modal is always over info modal  */
+}
+
+.resource-icon:hover {
+    box-shadow: 0 0 5px rgba(0, 123, 255, 0.6); /* Blue box-shadow for a subtle highlight effect */
+    background-color: rgba(0, 123, 255, 0.3); /* Light blue background on hover */
 }

@@ -12,8 +12,7 @@ import dash_bootstrap_components as dbc
 
 input_modal = dbc.Modal(
     [
-        dbc.ModalHeader(dbc.ModalTitle(
-            "Edit Resource Link"), close_button=True),
+        dbc.ModalHeader(dbc.ModalTitle(id="editing-resource-type"), close_button=True),
         dbc.ModalBody([
             html.Div(id="input-modal-components")
         ]),

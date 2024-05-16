@@ -8,5 +8,8 @@ Defines:
 """
 
 from dash import html
-
-edit_icon = html.Img(src="/assets/edit_icon.png", style={'width': '20px'})
+icon_size = '30px'
+edit_icon = html.Img(src="/assets/edit_icon.png", style={'width': icon_size})
+lyrics_icon = html.Img(src="/assets/lyrics_icon.png", style={'width': icon_size})
+lead_sheet_icon = html.Img(src="/assets/lead_sheet_icon.png", style={'width': icon_size})
+sheet_music_icon = html.Img(src="/assets/sheet_music_icon.png", style={'width': icon_size})

@@ -63,6 +63,10 @@ def populate_tracks(sample_albums):
         if not album_search_json_result['albums']['items']:
             continue
         album_id = album_search_json_result["albums"]["items"][0]["id"]
+        
+        album_url = f"https://api.spotify.com/v1/albums/{album_id}"
+        album_result = json.loads(get(album_url, headers=headers).content)
+        album_art = album_result['images'][2]['url']
 
         tracks_url = f"https://api.spotify.com/v1/albums/{album_id}/tracks"
         tracks_result = get(tracks_url, headers=headers)
@@ -70,6 +74,7 @@ def populate_tracks(sample_albums):
 
         for track in tracks:
             track_id = track["id"]
+            image = album_art
             title = track["name"]
             artist = track["artists"][0]["name"]
 
@@ -80,7 +85,7 @@ def populate_tracks(sample_albums):
             tempo = json.loads(audio_features_result.content)["tempo"]
 
             track_data = {
-                'track_id': track_id, 'title': title,
+                'track_id': track_id, 'image': image, 'title': title,
                 'album': album, 'artist': artist, 'tempo': tempo
             }
             sample_database.loc[len(sample_database)] = track_data
@@ -97,8 +102,10 @@ sample_albums = [
 
 # Populate the sample database
 sample_database = pd.DataFrame(
-    columns=['track_id', 'title', 'album', 'artist', 'tempo'])
+columns=['track_id', 'image', 'title', 'album', 'artist', 'tempo'])
 sample_database = populate_tracks(sample_albums)
+genres = pd.read_csv('data/genres.csv')
+sample_database['genre'] = genres['genre']
 
 # Save the DataFrame to a CSV file
-sample_database.to_csv('sample_database.csv', index=False)
+sample_database.to_csv('data/sample_database.csv', index=False)

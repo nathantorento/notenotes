@@ -20,6 +20,7 @@ def register_input_modal_callbacks(app):
         [
             Output("input-modal-status", "is_open"), # output with existing link filled in (or not)
             Output("input-modal-components", "children"),
+            Output("editing-resource-type", "children"),
         ],
         [
             Input({"type": "edit-resource", "index": ALL, "resource": ALL}, "n_clicks"),
@@ -70,14 +71,17 @@ def register_input_modal_callbacks(app):
         input_components = dbc.Row(
             html.Div([input_bar, submit_button], style={
             'display': 'flex',
-            'flexWrap': 'nowrap'
+            'justify-content': 'space-between'
             }
         ), key=track_id)
 
+        resource_name = resource_type.replace('_',' ').title()
+        input_heading = html.Div(html.A(resource_name, href=existing_link))
+
         if any(click > 0 for click in resource_clicks):
-            return (not is_open, input_components) # Open the modal if a resource button was clicked
+            return (not is_open, input_components, input_heading) # Open the modal if a resource button was clicked
         
         elif any(click > 0 for click in submit_clicks):
-            return (False, no_update)  # Close the modal if submit was clicked
+            return (False, no_update, input_heading)  # Close the modal if submit was clicked
 
-        return (is_open, no_update)
+        return (is_open, no_update, no_update) # Don't change anything if nothing is triggered

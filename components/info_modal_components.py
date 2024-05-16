@@ -17,16 +17,6 @@ info_modal = dbc.Modal(
             dbc.Row(
                 [
                     dbc.Col(dbc.ModalTitle("Metadata"), width=6),
-                    dbc.Col(
-                        html.Button(
-                            edit_icon,
-                            id="edit-modal-icon", n_clicks=0, style={
-                                'border': 'none',
-                                'background': 'none',
-                                'cursor': 'pointer'}
-                        ),
-                        style={'display': 'flex', 'margin-left': '5px'}
-                    )
                 ],
             ),
             close_button=True
@@ -42,5 +32,5 @@ info_modal = dbc.Modal(
     is_open=False,  # Initially don't show the modal
     centered=True,
     backdrop=True,  # Allow dismissal by clicking outside of modal
-    className="base-modal"  # CSS class to determine z-index and display priority
+    className="info-modal"  # CSS class to determine z-index and display priority
 )

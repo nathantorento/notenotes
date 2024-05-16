@@ -37,8 +37,8 @@ main_display_style = {
     'overflow-y': 'auto',
 }
 track_display_style = {
-    'border': '1px solid #ccc',
-    'border-radius': '10px',
+    'border': '1px solid #DAE9F4',
+    'borderRadius': '10px',
     'margin': '0px',
     'padding': '10px',
     'cursor': 'pointer',

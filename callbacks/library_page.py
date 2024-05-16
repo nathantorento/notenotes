@@ -25,11 +25,10 @@ def register_library_page_callbacks(app):
         if not data:
             return "Your library is empty. Why don't you add some songs?"
         else:
-            return [
-                dbc.Row(
+            library_rows = [dbc.Row(
                     song_row_generator(track_id, info, "library", data),
                     key=track_id,
                     className='library-row',
                     style=track_display_style
-                ) for track_id, info in data.items()
-            ]
+                ) for track_id, info in data.items()]
+            return library_rows

@@ -29,6 +29,8 @@ def register_info_modal_callbacks(app):
         [
             Input({'type': 'search-row', 'index': ALL}, 'n_clicks'),
             Input({'type': 'library-row', 'index': ALL}, 'n_clicks'),
+            Input({'type': 'edit-icon', 'index': ALL}, 'n_clicks'),
+            Input({'type': 'submit-link', 'index': ALL, 'resource': ALL}, 'n_clicks'),
         ],
         [
             State("modal-status", "is_open"),
@@ -36,7 +38,7 @@ def register_info_modal_callbacks(app):
         ],
         prevent_initial_call=True
     )
-    def toggle_update_modal(search_row_clicks, library_row_clicks, is_open, personal_library):
+    def toggle_update_modal(search_row_clicks, library_row_clicks, edit_icon_clicks, submit_link_clicks, is_open, personal_library):
         ctx = callback_context
         if not ctx.triggered:
             return is_open, no_update, no_update
@@ -45,11 +47,20 @@ def register_info_modal_callbacks(app):
         index = ast.literal_eval(triggered_element.split('.')[0])['index']
 
         # Retrieve song data, checking personal library first
-        song_data = personal_library.get(index) or sample_database[sample_database['track_id'] == index].drop(
+        if personal_library.get(index):
+            song_data = personal_library.get(index)
+        else:
+            song_data = sample_database[sample_database['track_id'] == index].drop(
             columns='track_id').iloc[0].to_dict()
 
+        # Refresh info modal if submit-link is clicked
+        if any(click > 0 for click in submit_link_clicks):
+            modal_attributes = modal_attributes_generator(song_data)
+            modal_resources = modal_resources_generator(song_data, index) if index in personal_library else []
+            return is_open, modal_attributes, modal_resources
+        
         # Modal content generation based on the song data and whether it is in the library
-        if any(click > 0 for click in search_row_clicks + library_row_clicks):
+        if any(click > 0 for click in search_row_clicks + library_row_clicks + edit_icon_clicks):
             if song_data:
                 modal_attributes = modal_attributes_generator(song_data)
                 modal_resources = modal_resources_generator(
