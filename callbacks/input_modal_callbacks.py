@@ -22,8 +22,8 @@ def register_input_modal_callbacks(app):
             Output("input-modal-components", "children"),
         ],
         [
-            Input({"type": "edit-resource", "index": ALL,
-                  "resource": ALL}, "n_clicks")
+            Input({"type": "edit-resource", "index": ALL, "resource": ALL}, "n_clicks"),
+            Input({'type': 'submit-link', 'index': ALL, 'resource': ALL}, "n_clicks"),
         ],
         [
             State("input-modal-status", "is_open"),
@@ -31,7 +31,7 @@ def register_input_modal_callbacks(app):
         ],
         prevent_initial_call=True
     )
-    def toggle_update_input_modal(resource_clicks, is_open, library_data):
+    def toggle_update_input_modal(resource_clicks, submit_clicks, is_open, library_data):
         ctx = callback_context
         if not ctx.triggered:
             return is_open
@@ -41,28 +41,43 @@ def register_input_modal_callbacks(app):
         resource_type = trigger_info["resource"]
         track_id = trigger_info["index"]
 
-        existing_link = library_data[track_id]
-        input_bar = dbc.Input(
-            id=existing_link,
-            placeholder="Insert link",
-            type="text",
-            style={
-                'flexGrow': 1,
-                'margin-right': '10px'}),
-        submit_button = dbc.Button(
-            "Submit",
-            id={
-                'type': 'submit-link',
-                'index': track_id,
-                'resource': resource_type},
-            className="ms-auto",
-            n_clicks=0
+        existing_link = library_data[track_id][resource_type]
+
+        input_bar = dbc.Col(
+            dbc.Input(
+                id='input-link',
+                value=existing_link,
+                placeholder="Insert link",
+                type="text",
+                style={
+                    'flexGrow': 1,
+                    'margin-right': '10px'}
+            ), width=9, style={'margin-right': '10px'}
         )
-        input_components = html.Div([input_bar, submit_button], style={
+        submit_button = dbc.Col(
+            dbc.Button(
+                "Submit",
+                id={
+                    'type': 'submit-link',
+                    'index': track_id,
+                    'resource': resource_type,
+                },
+                # className="submit-link",
+                n_clicks=0
+            ), width=2
+        )
+
+        input_components = dbc.Row(
+            html.Div([input_bar, submit_button], style={
             'display': 'flex',
             'flexWrap': 'nowrap'
-        })
+            }
+        ), key=track_id)
 
         if any(click > 0 for click in resource_clicks):
-            return not is_open, input_components
-        return is_open, no_update
+            return (not is_open, input_components) # Open the modal if a resource button was clicked
+        
+        elif any(click > 0 for click in submit_clicks):
+            return (False, no_update)  # Close the modal if submit was clicked
+
+        return (is_open, no_update)

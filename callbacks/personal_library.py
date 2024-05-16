@@ -26,19 +26,21 @@ def register_personal_library_callbacks(app):
         [
             Input({'type': 'search-check', 'index': ALL}, 'value'),
             Input({'type': 'library-check', 'index': ALL}, 'value'),
-            Input({'type': 'submit-link', 'index': ALL}, 'value'),
+            Input({'type': 'submit-link', 'index': ALL, 'resource': ALL}, 'n_clicks'),
         ],
         [
             State({'type': 'search-check', 'index': ALL}, 'id'),
             State({'type': 'library-check', 'index': ALL}, 'id'),
+            State("input-link", "value"),
             State('user-library-store', 'data')
         ]
     )
     def update_personal_library(search_values,
                                 library_values,
-                                submit_values,
+                                submit_link_clicks,
                                 search_ids,
                                 library_ids,
+                                input_link,
                                 personal_library):
         # Determine which actions were performed
         ctx = callback_context
@@ -46,10 +48,13 @@ def register_personal_library_callbacks(app):
             return personal_library
 
         triggered_id = ctx.triggered[0]['prop_id']
-        dictionary_part = triggered_id.split('.')[0]
-        # Use ast.literal_eval to safely evaluate the string to a dictionary
-        dict_result = ast.literal_eval(dictionary_part)
+        dict_result = ast.literal_eval(triggered_id.split('.')[0]) # Use ast.literal_eval to safely evaluate the string to a dictionary
 
+        if any(click > 0 for click in submit_link_clicks):
+            track_id = dict_result['index']
+            resource_type = dict_result['resource']
+            personal_library[track_id][resource_type] = input_link
+            
         # Add or remove songs to library when checkbox is checked or unchecked, respectively
         if 'check' in triggered_id:
             if 'search-check' in triggered_id:
@@ -68,9 +73,12 @@ def register_personal_library_callbacks(app):
                         'artist': song_data['artist'],
                         'album': song_data['album'],
                         'tempo': song_data['tempo'],
-                        'genre': song_data['genre']
+                        'genre': song_data['genre'],
+                        'lyrics': "",
+                        'lead-sheet': "",
+                        'sheet-music': ""
                     }
                 else:  # Removing song from library
                     personal_library.pop(track_id, None)
-
+        
         return personal_library

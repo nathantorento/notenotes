@@ -19,7 +19,7 @@ info_modal = dbc.Modal(
                     dbc.Col(dbc.ModalTitle("Metadata"), width=6),
                     dbc.Col(
                         html.Button(
-                            html.Img(edit_icon),
+                            edit_icon,
                             id="edit-modal-icon", n_clicks=0, style={
                                 'border': 'none',
                                 'background': 'none',

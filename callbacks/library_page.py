@@ -13,7 +13,6 @@ import dash_bootstrap_components as dbc
 from app import app
 from utils.helpers import song_row_generator
 from utils.styles import main_header_style, track_display_style
-from utils.icons import edit_icon  # Import the shared icon
 
 
 def register_library_page_callbacks(app):

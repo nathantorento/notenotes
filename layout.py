@@ -9,7 +9,6 @@ Imports:
     - dbc from dash_bootstrap_components: For using Bootstrap components in Dash.
     - input_modal, info_modal from components: Modularized components.
     - menu_col_style, main_display_style, icon_style, nav_bar_style from styles: Shared styles.
-    - edit_icon from icons: Shared icon element.
 
 Defines:
     - layout: The layout structure of the Dash application.
@@ -94,5 +93,7 @@ layout = html.Div([
     ], fluid=True, style={'height': '100vh', 'padding': '0'}),
     info_modal,
     input_modal,
-    html.Div(id='dummy-div', style={'display': 'none'}),
+    html.Div([
+        dbc.Input(id="input-link", type="text", style={'display': 'none'})  # This input is hidden
+    ], id='dummy-div', style={'display': 'none'}),
 ], style={'margin': '0', 'height': '100vh'})

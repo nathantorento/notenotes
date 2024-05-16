@@ -9,4 +9,4 @@ Defines:
 
 from dash import html
 
-edit_icon = html.Img(src="assets/edit_icon.png", style={'width': '20px'})
+edit_icon = html.Img(src="/assets/edit_icon.png", style={'width': '20px'})

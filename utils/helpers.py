@@ -12,6 +12,7 @@ Defines:
 
 from dash import html
 import dash_bootstrap_components as dbc
+from utils.icons import edit_icon
 
 # Modal attributes content
 
@@ -108,7 +109,7 @@ def song_row_generator(track_id, info, page, personal_library=None):
     # Add edit icon if the song is in the library
     if track_id in personal_library:
         edit = dbc.Col(html.Button(
-            html.Img(src="assets/edit_icon.png", style={'width': '20px'}),
+            edit_icon,
             id={"type": "edit-icon", "index": track_id},
             n_clicks=0,
             style={'border': 'none', 'background': 'none', 'cursor': 'pointer'}
