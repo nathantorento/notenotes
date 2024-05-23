@@ -36,6 +36,18 @@ layout = html.Div([
                 ),
                 # Top nav section
                 dbc.Nav([
+                    # Home Nav Bar with Icon
+                    dbc.NavLink(
+                        html.Div([
+                            html.Img(src="/assets/home_icon.png",
+                                     style=icon_style),
+                            html.Span("Home", style={'fontWeight': 'bold'})
+                        ], style=nav_bar_style),
+                        href="/",
+                        active="exact",
+                        className="nav-link-custom"
+                    ),
+
                     # Search Nav Bar with Icon
                     dbc.NavLink(
                         html.Div([

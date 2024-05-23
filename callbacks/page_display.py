@@ -12,6 +12,7 @@ from dash.dependencies import Input, Output
 from dash import html, no_update
 from app import app
 from utils.styles import main_header_style
+from callbacks.home_page import load_homepage
 
 def register_page_display_callbacks(app):
 
@@ -20,7 +21,12 @@ def register_page_display_callbacks(app):
         Input('url', 'pathname')
     )
     def display_page(pathname):
-        if pathname == '/library':
+        if pathname == '/':
+            return html.Div([
+                html.H1('Home', style=main_header_style),
+                load_homepage()  # Use the function to get home page content
+            ])
+        elif pathname == '/library':
             return html.Div([
                 html.H1('Library', style=main_header_style),
                 html.Div(id='library-content')

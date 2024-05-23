@@ -35,14 +35,15 @@ def register_search_page_callbacks(app):
         if n_clicks is None or not value:
             raise PreventUpdate
 
-        search_results = search_rank(value, sample_database)
-
-        return [
+        raw_search_results = search_rank(value, sample_database)
+        search_results = [ # formatted as rows
             dbc.Row(
                 song_row_generator(
-                    result['track_id'], result, "search", library_data),
-                key=result['track_id'],
+                search_result['track_id'], search_result, "search", library_data),
+                key=search_result['track_id'],
                 className='search-row',
                 style=track_display_style
-            ) for result in search_results
+            ) for search_result in raw_search_results
         ]
+
+        return search_results

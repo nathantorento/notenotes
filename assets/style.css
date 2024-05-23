@@ -1,8 +1,21 @@
 /* assets/style.css */
-html, body {
+
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+
+body {
     min-width: 750px;
+    font-family: 'Roboto', sans-serif;
     width: 100%;
 }
+
+/* Setting color for all headings */
+h1, h2, h3, h4, h5, h6 {
+    color: #00295b; /* Dark blue color for headings */
+}
+
+/* Setting color for all body text */
+body {
+    color: #0052B5; /* Slightly lighter blue for body text */
 
 .search-row, .library-row {
     min-width: 500px;
@@ -13,7 +26,7 @@ html, body {
     color: #0052B5; /* Text color */
 }
 
-.custom-nav .nav-link.active {
+.custom-nav.active .nav-link.active {
     background-color: #0052B5; /* Darker baby blue background */
     color: #fff; /* White text */
 }
@@ -35,7 +48,10 @@ html, body {
     z-index: 1060 !important; /* Ensure input modal is always over info modal  */
 }
 
-.resource-icon:hover {
-    box-shadow: 0 0 5px rgba(0, 123, 255, 0.6); /* Blue box-shadow for a subtle highlight effect */
-    background-color: rgba(0, 123, 255, 0.3); /* Light blue background on hover */
+.resource-icon, .info-icon {
+    transition: transform 0.3s ease-in-out; /* Smooth transition for the scaling effect */
+}
+
+.resource-icon:hover, .info-icon:hover {
+    transform: scale(1.1); /* Slightly grow the object upon hover */
 }

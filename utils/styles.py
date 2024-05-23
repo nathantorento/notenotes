@@ -45,3 +45,6 @@ track_display_style = {
     'display': 'flex',
     'flexWrap': 'nowrap',
 }
+modal_display_style = {
+    'background': 'linear-gradient(to top, #C0DDF3, #ffffff)',
+}

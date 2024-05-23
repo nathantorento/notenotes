@@ -9,6 +9,8 @@ Defines:
 
 from dash import html
 icon_size = '30px'
+add_icon_unfilled = html.Img(src="/assets/add_icon_unfilled.png", style={'width': icon_size})
+add_icon_filled = html.Img(src="/assets/add_icon_filled.png", style={'width': icon_size})
 edit_icon = html.Img(src="/assets/edit_icon.png", style={'width': icon_size})
 lyrics_icon = html.Img(src="/assets/lyrics_icon.png", style={'width': icon_size})
 lead_sheet_icon = html.Img(src="/assets/lead_sheet_icon.png", style={'width': icon_size})

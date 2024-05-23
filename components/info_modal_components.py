@@ -10,6 +10,7 @@ Defines:
 from dash import html
 import dash_bootstrap_components as dbc
 from utils.icons import edit_icon
+from utils.styles import modal_display_style
 
 info_modal = dbc.Modal(
     [
@@ -26,11 +27,11 @@ info_modal = dbc.Modal(
             # Space between attributes and resources
             html.Div(style={"height": "20px"}),
             html.Div(id="modal-resources")
-        ]),
+        ], style = modal_display_style),
     ],
     id="modal-status",
     is_open=False,  # Initially don't show the modal
     centered=True,
     backdrop=True,  # Allow dismissal by clicking outside of modal
-    className="info-modal"  # CSS class to determine z-index and display priority
+    className="info-modal",  # CSS class to determine z-index and display priority
 )

@@ -10,9 +10,10 @@ Defines:
     - search_rank(keyword, df): Ranks search results based on the keyword and dataframe.
 """
 
+import re
 from dash import html
 import dash_bootstrap_components as dbc
-from utils.icons import edit_icon, lyrics_icon, lead_sheet_icon, sheet_music_icon
+from utils.icons import add_icon_unfilled, add_icon_filled, edit_icon, lyrics_icon, lead_sheet_icon, sheet_music_icon
 
 # Modal attributes content
 
@@ -30,8 +31,9 @@ def modal_attributes_generator(song_data):
         button = dbc.Button(
             html.Span(f"{attribute.title()}: {value}", style={'fontSize': '16px'}),
             style={
-                'background-color': '#65fe08)',
-                'color': 'white',
+                'background-color': '#95CDF6',
+                'border': 'none',
+                'color': 'black',
                 'width': '150px'}
         )
         return button
@@ -67,25 +69,43 @@ def modal_resources_generator(song_data, track_id):
                 n_clicks=0,
                 style={'cursor': 'pointer',
                        'background-color': '#f9be82',
+                        'border': 'none',
                        'color': 'white',
-                       'width': '150px'}
+                       'width': '150px'},
+                className='info-icon'
             )
         else:
-            button = dbc.Button(
-                html.Span(resource_name, style={'fontSize': '16px'}),
-                href=link,
-                id={
-                    "index": track_id,
-                    "type": "edit-resource",
-                    "resource": resource_name.lower().replace(" ", "_")
-                },
-                n_clicks=0,
-                style={'cursor': 'pointer',
-                       'background-color': '#f9be82',
-                       'color': 'blue',
-                       'textDecoration': 'underline',
-                       'width': '150px'}
-            )
+            if link == '': # If no lyrics have been added yet, don't make lyrics clickable
+                button = dbc.Button(
+                    html.Span(resource_name, style={'fontSize': '16px'}),
+                    id={
+                        "index": track_id,
+                        "type": "edit-resource",
+                        "resource": resource_name.lower().replace(" ", "_")
+                    },
+                    style={'cursor': 'pointer',
+                        'background-color': '#f9be82',
+                        'color': 'blue',
+                        'width': '150px'},
+                    className='info-icon'
+                )
+            else:
+                button = dbc.Button(
+                    html.Span(resource_name, style={'fontSize': '16px'}),
+                    href=link,
+                    id={
+                        "index": track_id,
+                        "type": "edit-resource",
+                        "resource": resource_name.lower().replace(" ", "_")
+                    },
+                    n_clicks=0,
+                    style={'cursor': 'pointer',
+                        'background-color': '#f9be82',
+                        'color': 'blue',
+                        'textDecoration': 'underline',
+                        'width': '150px'},
+                    className='info-icon'
+                )
         return button
 
     lyrics = resource_button_generator(
@@ -108,7 +128,6 @@ def modal_resources_generator(song_data, track_id):
 
 def song_row_generator(track_id, info, page, personal_library=None):
     row_type = f"{page}-row"
-    check_type = f"{page}-check"
 
     image = dbc.Col(html.Img(
         src=info['image'],
@@ -133,19 +152,31 @@ def song_row_generator(track_id, info, page, personal_library=None):
             'fontSize': '16px',
             'color': 'gray'
         }),
-    ], id={'type': row_type, 'index': track_id}, n_clicks=0, style={'cursor': 'pointer', 'marginLeft': '10px'}), 
-    width=4)
+    ], id={'type': row_type, 'index': track_id}, n_clicks=0, style={'cursor': 'pointer', 'marginLeft': '10px'}), width=4)
 
     # Accompanying checkmarks per row
-    checkbox = dbc.Col(dbc.Checkbox(
-        id={'type': check_type, 'index': track_id},
-        value=(track_id in personal_library) if personal_library else False
-    ), width=2, style={
-        'display': 'flex',
-        'justify-content': 'center',  # Center horizontally
-        'align-items': 'center',  # Center vertically
-    }
-    )
+    if track_id in personal_library:
+        checkbox = dbc.Col(html.Div(
+            add_icon_filled,
+            id={'type': 'song-check', 'index': track_id},
+            n_clicks=0,
+            className='resource-icon',
+        ), width=2, style={
+            'display': 'flex',
+            'justify-content': 'center',  # Center horizontally
+            'align-items': 'center',  # Center vertically
+        })
+    else:
+        checkbox = dbc.Col(html.Div(
+            add_icon_unfilled,
+            id={'type': 'song-check', 'index': track_id},
+            n_clicks=0,
+            className='resource-icon',
+        ), width=2, style={
+            'display': 'flex',
+            'justify-content': 'center',  # Center horizontally
+            'align-items': 'center',  # Center vertically
+        })
 
     row_contents = [image, row, checkbox]
 
@@ -176,7 +207,7 @@ def song_row_generator(track_id, info, page, personal_library=None):
                     "resource": resource_name
                 },
                 n_clicks=0,
-                className='resource-icon',
+                className='info-icon',
                 style={'border': 'none', 'background': 'none', 'cursor': 'pointer', 'margin': '0'}
             ))
             extra_resources.append(resource)
@@ -187,10 +218,11 @@ def song_row_generator(track_id, info, page, personal_library=None):
             html.Div(extra_resources, style={
                 'display': 'flex',
                 'justify-content': 'space-between',
-            }), style={
-                'display': 'flex',
-                'justify-content': 'center',  # Center horizontally
-                'align-items': 'center',  # Center vertically
+            }), className='info-icon',
+                style={
+                    'display': 'flex',
+                    'justify-content': 'center',  # Center horizontally
+                    'align-items': 'center',  # Center vertically
             })
         row_contents.append(extra_resources)
 
@@ -222,3 +254,19 @@ def search_rank(keyword, df):
     # Create a list of search results in the format "Title – Artist"
     search_results = df[df['track_id'].isin(search_results)]
     return search_results.to_dict('records')
+
+# Fill in a recommended link
+def resource_link_suggestion(resource_type=None, title=None, artist=None):
+    if title!=None and artist!=None:
+        if resource_type == 'lyrics':
+            artist_simple = artist.replace(' ','').lower()
+            title_simple = re.sub(r'[^a-zA-Z0-9]', '', title).lower()
+            link = f'https://www.azlyrics.com/lyrics/{artist_simple}/{title_simple}.html'
+        elif resource_type == 'lead_sheet':
+            link = None
+        elif resource_type == 'sheet_music':
+            link = None
+    else:
+        link = None
+
+    return link
