@@ -7,7 +7,7 @@ Functions:
     - get_home_page_content(): Returns the content of the home page.
 """
 
-from dash import html
+from dash import html, dcc
 import dash_bootstrap_components as dbc
 
 def load_homepage():
@@ -17,7 +17,9 @@ def load_homepage():
             "Curate and manage your personal music library all in one place",
             className="text-lead text-center mb-4"
         )),
+
         dbc.Row(html.Div(style={'height': '2px', 'width': '80%', 'background-color': '#E3EBF1', 'margin': '20px 0px 20px 0px'}), className="my-3", justify="center"),
+        
         dbc.Row([
             dbc.Col(html.Div([
                 html.H4("Search Songs"),
@@ -35,4 +37,14 @@ def load_homepage():
         dbc.Row([
             dbc.Col(dbc.Button("Start Exploring", href="/search", color="primary", className="mt-4"), className="text-center")
         ]),
+
+        dbc.Row(html.Div(style={'height': '2px', 'width': '80%', 'background-color': '#E3EBF1', 'margin': '20px 0px 20px 0px'}), className="my-3", justify="center"),
+
+        dbc.Container([
+        dbc.Row([
+            dbc.Col(html.Button("Tap", id="tap-button", n_clicks=0, className="btn btn-primary")),
+            dbc.Col(html.Div(id="tempo-display"))
+        ]),
+        dcc.Store(id="tap-times", data=[])
+        ])
     ], fluid=True, className="py-3")

@@ -63,7 +63,7 @@ def register_personal_library_callbacks(app):
                     'tempo': song_data['tempo'],
                     'genre': song_data['genre'],
                     'lyrics': '',
-                    'lead_sheet': '',
+                    'chords': '',
                     'sheet_music': '',
                 }
                 return personal_library

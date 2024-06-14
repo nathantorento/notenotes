@@ -13,22 +13,18 @@ Defines:
 import re
 from dash import html
 import dash_bootstrap_components as dbc
-from utils.icons import add_icon_unfilled, add_icon_filled, edit_icon, lyrics_icon, lead_sheet_icon, sheet_music_icon
-
-# Modal attributes content
-
+from utils.icons import add_icon_unfilled, add_icon_filled, edit_icon, lyrics_icon, chords_icon, sheet_music_icon
 
 def modal_attributes_generator(song_data):
+    # List of attributes to exclude from button generation
+    excluded_attributes = ['image', 'title', 'artist', 'album', 'lyrics', 'chords', 'sheet_music']
+
     # Function to generate buttons in a custom, reusable format
-    def button_generator(song_data, attribute):
-        value = song_data.get(attribute, 'None')
+    def button_generator(attribute, value):
         if attribute == "tempo" and value != 'None':
             # Convert to float, round up, and append units
-            value = f"{round(value)}bpm"
-        else:
-            value = f"{value}"
-
-        button = dbc.Button(
+            value = f"{round(float(value))}bpm"
+        return dbc.Button(
             html.Span(f"{attribute.title()}: {value}", style={'fontSize': '16px'}),
             style={
                 'background-color': '#95CDF6',
@@ -36,14 +32,26 @@ def modal_attributes_generator(song_data):
                 'color': 'black',
                 'width': '150px'}
         )
-        return button
 
-    genre = button_generator(song_data, "genre")
-    tempo = button_generator(song_data, "tempo")
+    # Add Tag button
+    add_tag_button = dbc.Button(
+        "Add Tag", id="add-tag-button", n_clicks=0,
+        style={'background-color': '#E9F5FE', 'border': 'none', 'color': 'black', 'width': '150px'}
+    )
 
-    attributes = html.Div([genre, tempo], style={
+    # Generate buttons for attributes not in the excluded list
+    attribute_buttons = [add_tag_button]  # Start with the Add Tag button
+    for attribute, value in song_data.items():
+        if attribute not in excluded_attributes:
+            attribute_value = song_data.get(attribute, 'None')
+            attribute_buttons.append(button_generator(attribute, attribute_value))
+    
+    # Wrap the buttons in a Div for display
+    attributes = html.Div(attribute_buttons, style={
         'display': 'flex',
-        'justify-content': 'space-between'})
+        'flex-wrap': 'wrap',
+        'gap': '10px',
+        'justify-content': 'flex-start'})
 
     return attributes
 
@@ -52,7 +60,7 @@ def modal_attributes_generator(song_data):
 
 def modal_resources_generator(song_data, track_id):
     lyrics_link = song_data.get('lyrics', '')
-    lead_sheet_link = song_data.get('lead_sheet', '')
+    chords_link = song_data.get('chords', '')
     sheet_music_link = song_data.get('sheet_music', '')
 
     # Function to generate resource buttons in a custom, reusable format
@@ -110,13 +118,13 @@ def modal_resources_generator(song_data, track_id):
 
     lyrics = resource_button_generator(
         "Lyrics", lyrics_link, track_id)
-    lead_sheet = resource_button_generator(
-        "Lead Sheet", lead_sheet_link, track_id)
+    chords = resource_button_generator(
+        "Chords", chords_link, track_id)
     sheet_music = resource_button_generator(
         "Sheet Music", sheet_music_link, track_id)
 
     resources = dbc.Row(
-        html.Div([lyrics, lead_sheet, sheet_music], style={
+        html.Div([lyrics, chords, sheet_music], style={
             'display': 'flex',
             'justify-content': 'space-between'}
         ), key=track_id, className='edit-resource')
@@ -197,7 +205,7 @@ def song_row_generator(track_id, info, page, personal_library=None):
 
     # Add icons for resources
     extra_resources = []
-    for resource_name in ['lyrics', 'lead_sheet', 'sheet_music']:
+    for resource_name in ['lyrics', 'chords', 'sheet_music']:
         if track_id in personal_library and personal_library[track_id][resource_name]!='':
             resource = dbc.Col(html.Button(
                 globals()[f"{resource_name}_icon"],
@@ -258,14 +266,20 @@ def search_rank(keyword, df):
 # Fill in a recommended link
 def resource_link_suggestion(resource_type=None, title=None, artist=None):
     if title!=None and artist!=None:
+        artist_simple = re.sub(r'[^a-zA-Z0-9 ]', '', artist).lower()
+        title_simple = re.sub(r'[^a-zA-Z0-9 ]', '', title).lower()
         if resource_type == 'lyrics':
-            artist_simple = artist.replace(' ','').lower()
-            title_simple = re.sub(r'[^a-zA-Z0-9]', '', title).lower()
+            artist_simple = artist_simple.replace(' ','')
+            title_simple = title_simple.replace(' ','')
             link = f'https://www.azlyrics.com/lyrics/{artist_simple}/{title_simple}.html'
-        elif resource_type == 'lead_sheet':
-            link = None
+        elif resource_type == 'chords':
+            artist_simple = artist_simple.replace(' ','%20')
+            title_simple = title_simple.replace(' ','%20')
+            link = f'https://www.ultimate-guitar.com/search.php?search_type=title&value={artist_simple}%20{title_simple}'
         elif resource_type == 'sheet_music':
-            link = None
+            artist_simple = artist_simple.replace(' ','+')
+            title_simple = title_simple.replace(' ','+')
+            link = f'https://www.musicnotes.com/search/go?w={artist_simple}+{title_simple}&from=header'
     else:
         link = None
 

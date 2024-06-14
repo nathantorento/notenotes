@@ -7,6 +7,7 @@ Functions:
     - register_info_modal_callbacks(app): Registers callbacks related to the info modal.
 """
 
+import dash
 from dash.dependencies import Input, Output, State, ALL
 from dash import callback_context, no_update
 import ast
@@ -69,3 +70,31 @@ def register_info_modal_callbacks(app):
             else:
                 return not is_open, no_update, no_update
         return is_open, no_update, no_update
+    
+    # @app.callback(
+    #     [Output("add-tag-button", "style"),
+    #     Output("tag-input", "style")],
+    #     [Input("add-tag-button", "n_clicks")],
+    #     [State("add-tag-button", "style"), State("tag-input", "style")]
+    # )
+    # def toggle_tag_input(n_clicks, btn_style, input_style):
+    #     if n_clicks > 0:
+    #         return {'display': 'none'}, {}  # Hide button, show input
+    #     return btn_style, input_style  # No change to styles if not clicked
+
+    # @app.callback(
+    #     [Output("tags-container", "children"),
+    #     Output("add-tag-button", "n_clicks"),
+    #     Output("tag-input", "value"),
+    #     Output("tag-input", "style")],
+    #     [Input("tag-input", "n_submit"), Input("tag-input", "n_blur")],
+    #     [State("tag-input", "value"), State("tags-container", "children")]
+    # )
+    # def add_tag(submit, blur, tag_value, existing_tags):
+    #     triggered_id = dash.callback_context.triggered[0]['prop_id'].split('.')[0]
+    #     if triggered_id == "tag-input" and (submit or blur):
+    #         if tag_value:  # Only add tag if there's some text entered
+    #             new_tag = dbc.Button(tag_value, className="m-1")
+    #             existing_tags.append(new_tag)
+    #             return existing_tags, 0, '', {'display': 'none'}  # Reset
+    #     raise PreventUpdate
